@@ -1,7 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
 using BVNetwork.NotFound.Core.Data;
 using BVNetwork.NotFound.Core.Upgrade;
 using EPiServer.Logging;
+using EPiServer.ServiceLocation;
 
 namespace BVNetwork.NotFound.Core.CustomRedirects
 {
@@ -54,11 +59,41 @@ namespace BVNetwork.NotFound.Core.CustomRedirects
         /// </summary>
         protected void LoadCustomRedirects()
         {
+            var logger = ServiceLocator.Current.GetInstance<ILogger>();
             DataStoreHandler dynamicHandler = new DataStoreHandler();
-            _customRedirects = new CustomRedirectCollection();
+            _customRedirects = new CustomRedirectCollection();            
 
-            foreach (CustomRedirect redirect in dynamicHandler.GetCustomRedirects(false))
-                _customRedirects.Add(redirect);
+            Stopwatch watch = new Stopwatch();
+            watch.Start();
+
+            var numberOfRedirects = dynamicHandler.GetNumberOfRedirects();
+
+            var totalIterations = (numberOfRedirects/1000) + 1;
+
+            logger.Debug("Total number of redirects: {0}", dynamicHandler.GetNumberOfRedirects());
+
+            int n = totalIterations;
+            Parallel.For(0, n, i =>
+            {
+                logger.Debug("Getting redirects iteration {0}", i);
+                var redirects = new List<CustomRedirect>();
+                redirects.AddRange(dynamicHandler.GetCustomRedirects(false, i));
+                foreach (var customRedirect in redirects)
+                {
+                    try
+                    {
+                        _customRedirects.Add(customRedirect);
+                    }
+                    catch(Exception ex)
+                    {
+                        logger.Error("Failed while adding redirect.",ex);
+                    }
+                }
+            });
+
+            watch.Stop();
+            logger.Debug("Total number of loaded redirects {0} in {1} millisecs", _customRedirects.Count,
+                watch.ElapsedMilliseconds);
         }
 
         /// <summary>

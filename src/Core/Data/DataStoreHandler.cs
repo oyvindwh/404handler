@@ -30,12 +30,17 @@ namespace BVNetwork.NotFound.Core.Data
                 store.Save(currentCustomRedirect);
         }
 
+        public int GetNumberOfRedirects()
+        {
+            DynamicDataStore store = DataStoreFactory.GetStore(typeof (CustomRedirect));
+            return store.LoadAll().Count();
+        }
 
         /// <summary>
         /// Returns a list of all CustomRedirect objects in the Dynamic Data Store.
         /// </summary>
         /// <returns></returns>
-        public List<CustomRedirect> GetCustomRedirects(bool excludeIgnored)
+        public List<CustomRedirect> GetCustomRedirects(bool excludeIgnored, int page = 0)
         {
             // IEnumerable<CustomRedirect> customRedirects = null;
             DynamicDataStore store = DataStoreFactory.GetStore(typeof(CustomRedirect));
@@ -51,7 +56,7 @@ namespace BVNetwork.NotFound.Core.Data
                 customRedirects = from s in store.Items<CustomRedirect>().OrderBy(cr => cr.OldUrl)
                                   select s;
             }
-            return customRedirects != null ? customRedirects.ToList() : null;
+            return customRedirects != null ? customRedirects.Skip(page*1000).Take(1000).ToList() : null;
         }
 
         public List<CustomRedirect> GetIgnoredRedirect()
